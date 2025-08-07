@@ -340,5 +340,11 @@
     "temperature": 56,
     "humidity": 108,
     "status": "OK"
+  },
+  {
+    "timestamp": "2025-08-07T06:18:12.375653Z",
+    "temperature": 54,
+    "humidity": 108,
+    "status": "OK"
   }
 ]
