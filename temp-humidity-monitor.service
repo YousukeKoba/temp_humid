@@ -1,0 +1,21 @@
+[Unit]
+Description=Temperature Humidity Monitor Service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/temperature_humidity_monitor/raspberry_pi
+ExecStart=/usr/bin/python3 /home/pi/temperature_humidity_monitor/raspberry_pi/data_collector.py
+Restart=always
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+# 環境変数
+Environment=PYTHONPATH=/home/pi/temperature_humidity_monitor/raspberry_pi
+
+[Install]
+WantedBy=multi-user.target
