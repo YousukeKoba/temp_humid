@@ -103,17 +103,19 @@ class DHT11_PreciseTiming:
             if debug:
                 print("開始信号: 40μs HIGH開始")
             
-            # pigpioによるμs単位遅延（正しいAPI使用）
-            start_time = self.pi.get_tick()
-            while (self.pi.get_tick() - start_time) < 40:
-                pass  # 40μs待機
+            # time.time()を使用したμs精度制御
+            start_time = time.time()
+            target_duration = 40e-6  # 40μs in seconds
+            while (time.time() - start_time) < target_duration:
+                pass  # 40μs待機（ビジーウェイト）
             
             # 入力モードに切り替え
             self.pi.set_mode(self.pin, pigpio.INPUT)
             self.pi.set_pull_up_down(self.pin, pigpio.PUD_UP)
             
             if debug:
-                print("開始信号完了、入力モードに切り替え")
+                actual_duration = (time.time() - start_time) * 1000000
+                print(f"開始信号完了、実際の待機時間: {actual_duration:.1f}μs")
             
             return True
             
@@ -132,7 +134,7 @@ class DHT11_PreciseTiming:
             # 1. HIGH->LOW変化待機
             start_time = time.time()
             while self.pi.read(self.pin) == 1:
-                if (time.time() - start_time) * 1000000 > timeout_us:
+                if (time.time() - start_time) > 0.1:  # 100ms タイムアウト
                     if debug:
                         print("応答1: HIGH->LOW変化タイムアウト")
                     return False
@@ -140,7 +142,7 @@ class DHT11_PreciseTiming:
             # 2. LOW期間（約80μs）
             start_time = time.time()
             while self.pi.read(self.pin) == 0:
-                if (time.time() - start_time) * 1000000 > timeout_us:
+                if (time.time() - start_time) > 0.1:  # 100ms タイムアウト
                     if debug:
                         print("応答2: LOW期間タイムアウト")
                     return False
@@ -148,7 +150,7 @@ class DHT11_PreciseTiming:
             # 3. HIGH期間（約80μs）
             start_time = time.time()
             while self.pi.read(self.pin) == 1:
-                if (time.time() - start_time) * 1000000 > timeout_us:
+                if (time.time() - start_time) > 0.1:  # 100ms タイムアウト
                     if debug:
                         print("応答3: HIGH期間タイムアウト")
                     return False
@@ -172,7 +174,7 @@ class DHT11_PreciseTiming:
                 # LOW期間待機（50μs）
                 start_time = time.time()
                 while self.pi.read(self.pin) == 0:
-                    if (time.time() - start_time) * 1000000 > timeout_us:
+                    if (time.time() - start_time) > 0.0002:  # 200μs タイムアウト
                         if debug:
                             print(f"ビット{i}: LOW期間タイムアウト")
                         return bits
@@ -180,7 +182,7 @@ class DHT11_PreciseTiming:
                 # HIGH期間測定
                 high_start = time.time()
                 while self.pi.read(self.pin) == 1:
-                    if (time.time() - high_start) * 1000000 > timeout_us:
+                    if (time.time() - high_start) > 0.0002:  # 200μs タイムアウト
                         if debug:
                             print(f"ビット{i}: HIGH期間タイムアウト")
                         return bits
@@ -257,18 +259,18 @@ def test_precision_comparison():
         print(f"  目標: {target_us}μs, 実測平均: {avg_time:.1f}μs (誤差: {avg_time-target_us:+.1f}μs)")
     
     if PIGPIO_AVAILABLE:
-        print("\n2. pigpio.get_tick()の精度テスト")
+        print("\n2. pigpio精密制御テスト")
         try:
             pi = pigpio.pi()
             if pi.connected:
                 for target_us in [40, 100, 500]:
                     actual_times = []
                     for _ in range(10):
-                        start_tick = pi.get_tick()
                         start_time = time.time()
+                        target_duration = target_us * 1e-6  # μs to seconds
                         
-                        # μs単位の待機
-                        while (pi.get_tick() - start_tick) < target_us:
+                        # ビジーウェイトによる精密制御
+                        while (time.time() - start_time) < target_duration:
                             pass
                         
                         actual = (time.time() - start_time) * 1000000
