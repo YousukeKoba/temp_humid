@@ -102,8 +102,11 @@ class DHT11_PreciseTiming:
             self.pi.write(self.pin, 1)
             if debug:
                 print("開始信号: 40μs HIGH開始")
-            # pigpioのμs単位遅延
-            self.pi.delay(40)  # 40μs 高精度
+            
+            # pigpioによるμs単位遅延（正しいAPI使用）
+            start_time = self.pi.get_tick()
+            while (self.pi.get_tick() - start_time) < 40:
+                pass  # 40μs待機
             
             # 入力モードに切り替え
             self.pi.set_mode(self.pin, pigpio.INPUT)
@@ -254,16 +257,21 @@ def test_precision_comparison():
         print(f"  目標: {target_us}μs, 実測平均: {avg_time:.1f}μs (誤差: {avg_time-target_us:+.1f}μs)")
     
     if PIGPIO_AVAILABLE:
-        print("\n2. pigpio.delay()の精度テスト")
+        print("\n2. pigpio.get_tick()の精度テスト")
         try:
             pi = pigpio.pi()
             if pi.connected:
                 for target_us in [40, 100, 500]:
                     actual_times = []
                     for _ in range(10):
-                        start = time.time()
-                        pi.delay(target_us)
-                        actual = (time.time() - start) * 1000000
+                        start_tick = pi.get_tick()
+                        start_time = time.time()
+                        
+                        # μs単位の待機
+                        while (pi.get_tick() - start_tick) < target_us:
+                            pass
+                        
+                        actual = (time.time() - start_time) * 1000000
                         actual_times.append(actual)
                     
                     avg_time = sum(actual_times) / len(actual_times)
